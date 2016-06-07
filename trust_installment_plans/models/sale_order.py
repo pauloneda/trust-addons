@@ -103,3 +103,7 @@ class SaleOrder(models.Model):
                     'due_date': item.due_date, 'amount': item.amount}))
         result['payment_installment_ids'] = installments
         return result
+
+    def button_dummy(self, cr, uid, ids, context=None):        
+        self.generate_installment(cr, uid, ids, context)
+        return super(SaleOrder, self).button_dummy(cr, uid, ids, context)
