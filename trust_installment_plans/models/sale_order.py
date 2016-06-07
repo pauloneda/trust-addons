@@ -19,12 +19,13 @@
 #                                                                             #
 ###############################################################################
 
-from datetime import datetime
+import datetime
 
 from openerp import api, fields, models
 from openerp.exceptions import Warning
 from openerp.tools.translate import _
-
+from openerp.tools import DEFAULT_SERVER_DATE_FORMAT as DSDT
+from openerp.tools import DEFAULT_SERVER_DATETIME_FORMAT as DSDTT
 
 class PaymentInstallment(models.Model):
     _name = 'payment.installment'
@@ -59,8 +60,10 @@ class SaleOrder(models.Model):
                                      readonly=True,
                                      compute='_compute_difference')
 
+    form_calc = fields.Boolean('Calculo a partir da entrega')
+
     @api.one
-    @api.constrains('payment_installment_ids')
+#    @api.constrains('payment_installment_ids')
     def _check_amount_difference(self):
         if self.amount_difference != 0.0:
             raise Warning(_(u'Verifique as parcelas de pagamento,\
@@ -68,13 +71,20 @@ class SaleOrder(models.Model):
 
     @api.one
     def generate_installment(self):
+        if self.form_calc:
+            date_calc = self.requested_date
+        else:
+            date_calc = self.date_order
+        
+        cr_date = datetime.datetime.strptime(date_calc, DSDTT)
+        date_calc = cr_date.strftime(DSDT)
         if self.payment_term:
-            values = self.payment_term.compute(self.amount_total)
+            values = self.payment_term.compute(self.amount_total, date_calc)
             for item in self.payment_installment_ids:
                 item.unlink()
 
             for item in values[0]:
-                parcel = {'due_date': datetime.strptime(item[0], '%Y-%m-%d'),
+                parcel = {'due_date': datetime.datetime.strptime(item[0], '%Y-%m-%d'),
                           'payment_mode_id': self.payment_mode_id.id,
                           'amount': item[1], 'sale_order_id': self.id}
                 self.env['payment.installment'].create(parcel)
